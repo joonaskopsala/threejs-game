@@ -25,19 +25,41 @@ var cubeGeo, cubeMaterial;
 var objects = [];
 
 camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
-camera.position.set( 500, 800, 1300 );
+camera.position.set( 500, 1000, 1200 );
 //camera.lookAt( plane.position );
 
 renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setPixelRatio( window.devicePixelRatio );
 renderer.setSize( window.innerWidth, window.innerHeight );
 
+var gameStarted = false;
+
 //var rotationControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+var addCubeX = 200;
+var addCubeY = 50;
+var addCubeZ = 200;
+
+var startX = 200;
+var startY = 50;
+var startZ = 200;
+
+var tower = [];
 
 function init() {
 
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0xf0f0f0 );
+
+	document.body.appendChild( renderer.domElement );
+
+	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+	document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+	document.addEventListener( 'keydown', onDocumentKeyDown, false );
+	document.addEventListener( 'keyup', onDocumentKeyUp, false );
+
+	window.addEventListener( 'resize', onWindowResize, false );
+
 
 	// cube size variables
 	var cx = 100;
@@ -48,7 +70,7 @@ function init() {
 	var rollOverGeo = new THREE.BoxBufferGeometry(cx, cy, cz);
 	rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
 	rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
-	scene.add( rollOverMesh );
+	//scene.add( rollOverMesh );
 
 	// grid
 	var gridHelper = new THREE.GridHelper( 1000, 20 );
@@ -56,38 +78,6 @@ function init() {
 
 	//asetukset
 	var options = {
-		/*stop: function() {
-			this.velx = 0;
-			this.vely = 0;
-		},*/
-		reset: function() {
-			cx = 100;
-			cy = 100;
-			cz = 100;
-
-				if(objects)
-				{
-					for(cube in objects){
-						rollOverMesh.material.wireframe = false;
-					}
-				}
-		},
-		clear: function() {
-			for (var i = 1; i < objects.length; i++) {
-				scene.remove(objects[i]);
-			}
-			for (var i = objects.length; i >= 1; i--) {
-				objects.splice(i,1);
-			}
-			render();
-			console.log("Laatikkoja on " + (objects.length - 1));
-		},
-		wireframe: function() {
-			for (var i = 1; i < objects.length; i++) {
-				objects[i].material.wireframe = !objects[i].material.wireframe;
-			}
-			render();
-		}
 	};
 
 	//gui hommia
@@ -97,28 +87,24 @@ function init() {
 	cam.add(camera.position, 'y', 600, 1200).listen();
 	cam.add(camera.position, 'z', 500, 2000).listen();
 	cam.open();
-	/*var box = gui.addFolder('Cube');
-	box.add(cx, 100, 500).name('Width').listen();
-	box.add(cy, 100, 500).name('Height').listen();
-	box.add(cz, 100, 500).name('Length').listen();
-	box.add(rollOverMesh.material, 'wireframe').listen();
-	box.open();*/
-
-	gui.add(options, 'reset');
-	gui.add(options, 'clear');
-	gui.add(options, 'wireframe');
 
 	//raycaster
 	raycaster = new THREE.Raycaster();
 	mouse = new THREE.Vector2();
 
-	var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
-	geometry.rotateX( - Math.PI / 2 );
+	var cubeGeometry = new THREE.BoxGeometry(startX, startY, startZ);
+	var cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
+	var starterCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+	starterCube.position.y = (starterCube.position.y+(startY));
+	scene.add(starterCube);
+	console.log("starter pos" + starterCube.position.x)
 
-	plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
-	scene.add( plane );
+	var geometry = new THREE.PlaneBufferGeometry(1000,1000);
+	geometry.rotateX(-Math.PI/2);
 
-	objects.push( plane );
+	plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({visible: false}));
+	scene.add(plane);
+	objects.push(plane);
 
 	camera.lookAt( plane.position );
 
@@ -130,98 +116,77 @@ function init() {
 	var directionalLight = new THREE.DirectionalLight( 0xffffff );
 	directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
 	scene.add( directionalLight );
-
-	document.body.appendChild( renderer.domElement );
-
-	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-	document.addEventListener( 'mousedown', onDocumentMouseDown, false );
-	document.addEventListener( 'keydown', onDocumentKeyDown, false );
-	document.addEventListener( 'keyup', onDocumentKeyUp, false );
-
-	window.addEventListener( 'resize', onWindowResize, false );
-
 }
 
 function onWindowResize() {
-
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
-
 	renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
 
 function onDocumentMouseMove( event ) {
 
-	event.preventDefault();
-
-	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
-
-	raycaster.setFromCamera( mouse, camera );
-
-	var intersects = raycaster.intersectObjects( objects );
-
-	if ( intersects.length > 0 ) {
-
-		var intersect = intersects[0];
-
-		rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
-		
-		//rollOverMesh.position.divideScalar( 100 ).floor().multiplyScalar( 100 ).addScalar(rollOverMesh.scale.x/2); // Changed
-		rollOverMesh.position.x = Math.floor((rollOverMesh.position.x / 100));
-		rollOverMesh.position.x = (rollOverMesh.position.x * 100) + (rollOverMesh.geometry.parameters.width/2);
-
-		rollOverMesh.position.y = Math.floor((rollOverMesh.position.y / 100));
-		rollOverMesh.position.y = (rollOverMesh.position.y * 100) + (rollOverMesh.geometry.parameters.height/2);
-
-		rollOverMesh.position.z = Math.floor((rollOverMesh.position.z / 100));
-		rollOverMesh.position.z = (rollOverMesh.position.z * 100) + (rollOverMesh.geometry.parameters.depth/2);
-	}
-
-	render();
-
 }
 
 function onDocumentMouseDown( event ) {
-
+	
 	event.preventDefault();
 
 	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
 
 	raycaster.setFromCamera( mouse, camera );
 
+	var cubeGeometry = new THREE.BoxGeometry(addCubeX, addCubeY, addCubeZ);
+	var baseGeometry = new THREE.BoxGeometry(200, 50, 200);
+	var cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
 	var intersects = raycaster.intersectObjects( objects );
 
-	// cubes
-
-	cubeGeo = new THREE.BoxBufferGeometry((100 * rollOverMesh.scale.x), (100 * rollOverMesh.scale.y), (100 * rollOverMesh.scale.z));
-	cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
-
-	if (intersects.length > 0) {
-
-		var intersect = intersects[0];
-
-		// delete cube
-		if (isShiftDown) {
-		if (intersect.object !== plane) {
-			scene.remove(intersect.object);
-			objects.splice(objects.indexOf(intersect.object),1);
+	console.log("mouse clicked");
+	if(!gameStarted){
+		gameStarted = true;
+		var addCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+		addCube.position.x = (-350);
+		addCube.position.y = (startY+(addCubeY));
+		scene.add(addCube);
+		tower.push(addCube);
+		startY = startY+addCubeY;
+	}
+	else{
+		if(tower.length>2){
+			newBlock = tower[tower.length-1];
+			lastBlock = tower[tower.length-2];
+			if(newBlock && lastBlock){
+				const distance = newBlock.position.x - lastBlock.position.x;
+				addCubeX = addCubeX - Math.abs(distance);
+				console.log(distance);
+			}
 		}
-
-		// create cube
-
-		} else {
-		//voxel 
-		var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
-		voxel.position.copy( intersect.point ).add( intersect.face.normal );
-		voxel.position.divideScalar( 100 ).floor().multiplyScalar( 100 ).addScalar( 50 ); // Changed
-		scene.add( voxel );
-
-		objects.push( voxel );
-		console.log("Laatikkoja on " + (objects.length - 1));
+		else{
+			newBlock = tower[tower.length-1];
+			lastBlock = new THREE.Mesh(baseGeometry, cubeMaterial);
+			console.log("ei osunu 2");
+			const distance = newBlock.position.x - 0;
+			addCubeX = addCubeX - Math.abs(distance);
+			console.log(distance);
 		}
-		render();
-  	}
+		//leikkaa ja uusi
+		var addCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+		addCube.position.x = (-350);
+		addCube.position.y = (startY+(addCubeY));
+		//scene.add(addCube);
+		camera.position.y = (camera.position.y + addCubeY);
+		startY = startY+addCubeY;
+
+		if(addCubeX <= 0){
+			gameStarted = false;
+		}
+		else{		
+			scene.add(addCube);
+			tower.push(addCube);
+		}
+	}
+	
+	  //render();
 }
 
 function onDocumentKeyDown( event ) {
@@ -243,11 +208,22 @@ function onDocumentKeyUp( event ) {
 	}
 
 }
-
+var blockMove = 6;
 function render() {
 
-	renderer.render( scene, camera );
-	//rotationControls.update();
+	renderer.render(scene, camera);
+
+	if(gameStarted){
+		tower[tower.length-1].position.x += blockMove;
+		if(tower[tower.length-1].position.x > 300){
+			blockMove = -6;
+		}
+		if(tower[tower.length-1].position.x < -300) {
+			blockMove = 6;
+		}
+	}
+
+	requestAnimationFrame(render);
 
 }
 
