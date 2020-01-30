@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>threejs demo</title>
+	<style>
+		body { margin: 0; padding: 0; }
+		canvas { width: 100%; height: 100%; }
+	</style>
+</head>
+<body>
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/DragControls.js"></script>
+<script type='text/javascript' src='js/DAT.GUI.min.js'></script>
+
+<script>
+var camera, scene, renderer;
+var plane, cube;
+var mouse, raycaster, isShiftDown = false;
+
+var rollOverMesh, rollOverMaterial;
+var cubeGeo, cubeMaterial;
+
+var objects = [];
+
+camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+camera.position.set( 500, 800, 1300 );
+//camera.lookAt( plane.position );
+
+renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setPixelRatio( window.devicePixelRatio );
+renderer.setSize( window.innerWidth, window.innerHeight );
+
+//var rotationControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+function init() {
+
+	scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0xf0f0f0 );
+
+	// cube size variables
+	var cx = 100;
+	var cy = 100;
+	var cz = 100;
+
+	// roll-over helpers
+	var rollOverGeo = new THREE.BoxBufferGeometry(cx, cy, cz);
+	rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
+	rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+	scene.add( rollOverMesh );
+
+	// grid
+	var gridHelper = new THREE.GridHelper( 1000, 20 );
+	scene.add( gridHelper );
+
+	//asetukset
+	var options = {
+		/*stop: function() {
+			this.velx = 0;
+			this.vely = 0;
+		},*/
+		reset: function() {
+			cx = 100;
+			cy = 100;
+			cz = 100;
+
+				if(objects)
+				{
+					for(cube in objects){
+						rollOverMesh.material.wireframe = false;
+					}
+				}
+		},
+		clear: function() {
+			for (var i = 1; i < objects.length; i++) {
+				scene.remove(objects[i]);
+			}
+			for (var i = objects.length; i >= 1; i--) {
+				objects.splice(i,1);
+			}
+			render();
+			console.log("Laatikkoja on " + (objects.length - 1));
+		},
+		wireframe: function() {
+			for (var i = 1; i < objects.length; i++) {
+				objects[i].material.wireframe = !objects[i].material.wireframe;
+			}
+			render();
+		}
+	};
+
+	//gui hommia
+  	var gui = new dat.GUI();
+	var cam = gui.addFolder('Camera')
+	cam.add(camera.position, 'x', 300, 1000).listen();
+	cam.add(camera.position, 'y', 600, 1200).listen();
+	cam.add(camera.position, 'z', 500, 2000).listen();
+	cam.open();
+	/*var box = gui.addFolder('Cube');
+	box.add(cx, 100, 500).name('Width').listen();
+	box.add(cy, 100, 500).name('Height').listen();
+	box.add(cz, 100, 500).name('Length').listen();
+	box.add(rollOverMesh.material, 'wireframe').listen();
+	box.open();*/
+
+	gui.add(options, 'reset');
+	gui.add(options, 'clear');
+	gui.add(options, 'wireframe');
+
+	//raycaster
+	raycaster = new THREE.Raycaster();
+	mouse = new THREE.Vector2();
+
+	var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
+	geometry.rotateX( - Math.PI / 2 );
+
+	plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+	scene.add( plane );
+
+	objects.push( plane );
+
+	camera.lookAt( plane.position );
+
+	// lights
+
+	var ambientLight = new THREE.AmbientLight( 0x606060 );
+	scene.add( ambientLight );
+
+	var directionalLight = new THREE.DirectionalLight( 0xffffff );
+	directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+	scene.add( directionalLight );
+
+	document.body.appendChild( renderer.domElement );
+
+	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+	document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+	document.addEventListener( 'keydown', onDocumentKeyDown, false );
+	document.addEventListener( 'keyup', onDocumentKeyUp, false );
+
+	window.addEventListener( 'resize', onWindowResize, false );
+
+}
+
+function onWindowResize() {
+
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+
+	renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
+
+function onDocumentMouseMove( event ) {
+
+	event.preventDefault();
+
+	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+	raycaster.setFromCamera( mouse, camera );
+
+	var intersects = raycaster.intersectObjects( objects );
+
+	if ( intersects.length > 0 ) {
+
+		var intersect = intersects[0];
+
+		rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
+		
+		//rollOverMesh.position.divideScalar( 100 ).floor().multiplyScalar( 100 ).addScalar(rollOverMesh.scale.x/2); // Changed
+		rollOverMesh.position.x = Math.floor((rollOverMesh.position.x / 100));
+		rollOverMesh.position.x = (rollOverMesh.position.x * 100) + (rollOverMesh.geometry.parameters.width/2);
+
+		rollOverMesh.position.y = Math.floor((rollOverMesh.position.y / 100));
+		rollOverMesh.position.y = (rollOverMesh.position.y * 100) + (rollOverMesh.geometry.parameters.height/2);
+
+		rollOverMesh.position.z = Math.floor((rollOverMesh.position.z / 100));
+		rollOverMesh.position.z = (rollOverMesh.position.z * 100) + (rollOverMesh.geometry.parameters.depth/2);
+	}
+
+	render();
+
+}
+
+function onDocumentMouseDown( event ) {
+
+	event.preventDefault();
+
+	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+
+	raycaster.setFromCamera( mouse, camera );
+
+	var intersects = raycaster.intersectObjects( objects );
+
+	// cubes
+
+	cubeGeo = new THREE.BoxBufferGeometry((100 * rollOverMesh.scale.x), (100 * rollOverMesh.scale.y), (100 * rollOverMesh.scale.z));
+	cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
+
+	if (intersects.length > 0) {
+
+		var intersect = intersects[0];
+
+		// delete cube
+		if (isShiftDown) {
+		if (intersect.object !== plane) {
+			scene.remove(intersect.object);
+			objects.splice(objects.indexOf(intersect.object),1);
+		}
+
+		// create cube
+
+		} else {
+		//voxel 
+		var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
+		voxel.position.copy( intersect.point ).add( intersect.face.normal );
+		voxel.position.divideScalar( 100 ).floor().multiplyScalar( 100 ).addScalar( 50 ); // Changed
+		scene.add( voxel );
+
+		objects.push( voxel );
+		console.log("Laatikkoja on " + (objects.length - 1));
+		}
+		render();
+  	}
+}
+
+function onDocumentKeyDown( event ) {
+
+	switch( event.keyCode ) {
+
+		case 16: isShiftDown = true; break;
+
+	}
+
+}
+
+function onDocumentKeyUp( event ) {
+
+	switch ( event.keyCode ) {
+
+		case 16: isShiftDown = false; break;
+
+	}
+
+}
+
+function render() {
+
+	renderer.render( scene, camera );
+	//rotationControls.update();
+
+}
+
+init();
+render();
+</script>
+</body>
+</html>
