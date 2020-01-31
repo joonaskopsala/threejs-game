@@ -19,10 +19,7 @@ var camera, scene, renderer;
 var plane, cube;
 var mouse, raycaster, isShiftDown = false;
 
-var rollOverMesh, rollOverMaterial;
 var cubeGeo, cubeMaterial;
-
-var objects = [];
 
 camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
 camera.position.set( 500, 1000, 1200 );
@@ -55,32 +52,18 @@ function init() {
 
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 	document.addEventListener( 'mousedown', onDocumentMouseDown, false );
-	document.addEventListener( 'keydown', onDocumentKeyDown, false );
-	document.addEventListener( 'keyup', onDocumentKeyUp, false );
 
 	window.addEventListener( 'resize', onWindowResize, false );
 
-
-	// cube size variables
-	var cx = 100;
-	var cy = 100;
-	var cz = 100;
-
-	// roll-over helpers
-	var rollOverGeo = new THREE.BoxBufferGeometry(cx, cy, cz);
-	rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
-	rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
-	//scene.add( rollOverMesh );
-
-	// grid
+	//grid
 	var gridHelper = new THREE.GridHelper( 1000, 20 );
 	scene.add( gridHelper );
 
-	//asetukset
+	//settings
 	var options = {
 	};
 
-	//gui hommia
+	//gui
   	var gui = new dat.GUI();
 	var cam = gui.addFolder('Camera')
 	cam.add(camera.position, 'x', 300, 1000).listen();
@@ -93,10 +76,11 @@ function init() {
 	mouse = new THREE.Vector2();
 
 	var cubeGeometry = new THREE.BoxGeometry(startX, startY, startZ);
-	var cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
+	var cubeMaterial = new THREE.MeshLambertMaterial({color: Math.random() * 0xffffff});
 	var starterCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 	starterCube.position.y = (starterCube.position.y+(startY));
 	scene.add(starterCube);
+	tower.push(starterCube);
 	console.log("starter pos" + starterCube.position.x)
 
 	var geometry = new THREE.PlaneBufferGeometry(1000,1000);
@@ -104,18 +88,16 @@ function init() {
 
 	plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({visible: false}));
 	scene.add(plane);
-	objects.push(plane);
 
-	camera.lookAt( plane.position );
+	camera.lookAt(plane.position);
 
 	// lights
+	var ambientLight = new THREE.AmbientLight(0x606060);
+	scene.add(ambientLight);
 
-	var ambientLight = new THREE.AmbientLight( 0x606060 );
-	scene.add( ambientLight );
-
-	var directionalLight = new THREE.DirectionalLight( 0xffffff );
-	directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
-	scene.add( directionalLight );
+	var directionalLight = new THREE.DirectionalLight(0xffffff);
+	directionalLight.position.set(1, 0.75, 0.5).normalize();
+	scene.add(directionalLight);
 }
 
 function onWindowResize() {
@@ -124,22 +106,21 @@ function onWindowResize() {
 	renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-function onDocumentMouseMove( event ) {
+function onDocumentMouseMove(event) {
 
 }
 
-function onDocumentMouseDown( event ) {
+function onDocumentMouseDown(event) {
 	
 	event.preventDefault();
 
-	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+	mouse.set((event.clientX/window.innerWidth)*2-1,-(event.clientY/window.innerHeight)*2+1);
 
-	raycaster.setFromCamera( mouse, camera );
+	raycaster.setFromCamera(mouse,camera);
 
 	var cubeGeometry = new THREE.BoxGeometry(addCubeX, addCubeY, addCubeZ);
 	var baseGeometry = new THREE.BoxGeometry(200, 50, 200);
-	var cubeMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
-	var intersects = raycaster.intersectObjects( objects );
+	var cubeMaterial = new THREE.MeshLambertMaterial({color: Math.random()*0xffffff});
 
 	console.log("mouse clicked");
 	if(!gameStarted){
@@ -152,7 +133,7 @@ function onDocumentMouseDown( event ) {
 		startY = startY+addCubeY;
 	}
 	else{
-		if(tower.length>2){
+		if(tower.length>=2){
 			newBlock = tower[tower.length-1];
 			lastBlock = tower[tower.length-2];
 			if(newBlock && lastBlock){
@@ -164,12 +145,10 @@ function onDocumentMouseDown( event ) {
 		else{
 			newBlock = tower[tower.length-1];
 			lastBlock = new THREE.Mesh(baseGeometry, cubeMaterial);
-			console.log("ei osunu 2");
 			const distance = newBlock.position.x - 0;
 			addCubeX = addCubeX - Math.abs(distance);
-			console.log(distance);
+			console.log("!");
 		}
-		//leikkaa ja uusi
 		var addCube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 		addCube.position.x = (-350);
 		addCube.position.y = (startY+(addCubeY));
@@ -185,30 +164,10 @@ function onDocumentMouseDown( event ) {
 			tower.push(addCube);
 		}
 	}
-	
-	  //render();
 }
 
-function onDocumentKeyDown( event ) {
-
-	switch( event.keyCode ) {
-
-		case 16: isShiftDown = true; break;
-
-	}
-
-}
-
-function onDocumentKeyUp( event ) {
-
-	switch ( event.keyCode ) {
-
-		case 16: isShiftDown = false; break;
-
-	}
-
-}
 var blockMove = 6;
+
 function render() {
 
 	renderer.render(scene, camera);
@@ -222,9 +181,7 @@ function render() {
 			blockMove = 6;
 		}
 	}
-
 	requestAnimationFrame(render);
-
 }
 
 init();
